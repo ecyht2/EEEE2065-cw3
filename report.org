@@ -1,0 +1,302 @@
+#+title: EEEE2065 Coursework 3 Report
+#+author: Tan Hong Kai - 20386501
+#+email: ecyht2@nottingham.edu.my
+#+INCLUDE: "title_page.org"
+#+OPTIONS: toc:nil
+#+LATEX_HEADER: \setlength\parindent{0pt}
+
+#+begin_comment
+Clearing TOC Page
+#+end_comment
+
+#+begin_export latex
+  \clearpage \tableofcontents \clearpage
+#+end_export
+
+* Introduction
+In this coursework, an adventure game was created. The map of the game includes 9 rooms with the layout shown at figure [[fig:rooms]]. Each room has items and or enemies which has different behaviors. Each enemy have various strength and weaknesses. Items can be picked up, some items increases the damage dealt to enemies while some can heal the player when used. The player have certain amount of health and has a score/XP points. In order to win the game, the player must get the "Golden Chalice" and return to the starting room.
+
+The user would interact with the program using the standard input. The user would be prompted to type in commands to tell what the player should do. At any time, the user can use the *help* command to show all the available commands. A list of commands available is shown at table [[fig:commands-table]].
+
+The player has an inventory to keep track of what item the player picked up. The player can carry at most 3 items at the same time. Some items are considered weapons and increases the player's damage and some items are considered consumables such as food, medpack and elixir which when ate, used and drank would heal the player. There are also some special items such as the copper key which is used to unlock room9.
+
+Enemies/monsters have different stats and deal different amount of damage. The enemies take increase damage if the player has a sword, but some monster takes more damage if there is a certain item in the player's inventory. Some enemies also "protects the item" and prevents the player from taking the item before they are killed.
+
+* Methodology
+** Smart Pointers
+Smart pointers are used in the classes to manage dynamically allocated memory. To use smart pointers, I just need to include the src_C++[:exports code]{#include <memory>} header file. The memory header file is part of the C++ standard library. It provides two main classes which are src_C++[:exports code]{std::shared_ptr<typename Tp>} and src_C++[:exports code]{std::unique_ptr<typname Tp>}. Smart pointers will delete the pointer it holds when it goes out of scope. This saves a lot of time as I don't need to worry about deleting the allocated memory manually. Both classes are the same except there can be only 1 *std::unique\under{}ptr* at a time while there can be multiple *std::shared\under{}ptr* of the same pointer. In this coursework I mainly used *std::shared\under{}ptr* as the dynamically allocated memory might be used by multiple objects.
+
+** Generic Classes
+There are two main generic classes created for the adventure game. The first one represents a generic entity in the game and the other one represents a generic item in the game. These are then sub-classed into it's separate classes such as [[Player][Player]] and [[GenericEnemy][GenericEnemy]] class. The generic classes have callback functions that are called when certain event happened with the object such as the death of the entity.
+
+*** GenericEntity
+The [[GenericEntity][GenericEntity]] class represents a generic entity in the adventure game. It has 3 private member variables, and they are src_C++[:exports code]{int m_max_health}, src_C++[:exports code]{int m_damage} and src_C++[:exports code]{int m_current_health}. These represent the entity's max health, damage it deals, and it's current health respectively.
+
+These variables can be altered and retrieved using the getter and setter functions such as src_C++[:exports code]{int takeDamage(int damage, Inventory *inventory)} to reduce the src_C++[:exports code]{int m_current_health} variable (taking damage). The first parameter is the damage to deal to the entity and the Inventory of the attacking entity the [[Inventory][Inventory]] class would be talked about later. The constructor of the src_C++[:exports code]{GenericEntity} class takes in two arguments src_C++[:exports code]{int max_health} and src_C++[:exports code]{int damage} which would set the max health and the damage it deals respectively.
+
+The GenericEntity has 1 callback function src_C++[:exports code]{void onDeath(void)} which is called when the entity died. This is mainly used by the [[GenericEnemy][GenericEnemy]] class to allow the item to be picked up again.
+
+*** GenericItem
+The [[GenericItem][GenericItem]] item class represents a generic item in the adventure game. It has 2 private member variables, and they are src_C++[:exports code]{bool m_canPickup} and src_C++[:exports code]{std::string m_name}. The src_C++[:exports code]{m_canPickup} variable determines if the item can be picked up. This is used to lock the item from being picked up by the player until the enemy that is protecting it is killed. The src_C++[:exports code]{m_name} variable is just an identifier of the entity and determines what to print when the item is used with the src_C++[:exports code]{<<} operator with an output stream such as src_C++[:exports code]{std::cout}.
+
+The member variables can be set and get using their respective setter and getter functions. Operators are also overloaded in the [[GenericItem][GenericItem]] class. The src_C++[:exports code]{==} operator is overloaded to check if the name of the items are the same. There are two versions of the operator, one which takes in the class itself and the other takes in a string.
+
+Three callback functions are implemented for the class. The callbacks are src_C++[:exports code]{void onPickup(Player &entity)}, src_C++[:exports code]{void onDropped(Player &entity)} and src_C++[:exports code]{void onUsed(Player &entity)}. These functions are called when a player pickup, dropped and use the item. It does nothing in the generic classes, however they are later reimplemented to do different things. All the callbacks takes in a [[Player][Player]] class which is the player that pickup, dropped or used the item.
+
+** Player
+The [[Player][Player]] class represents the player in the game. The player is a subclass of the [[GenericEntity][GenericEntity]] class. However, it adds two extra private attributes, src_C++[:exports code]{int m_xp} and src_C++[:exports code]{std::shared_ptr<Inventory> inventory}. The src_C++[:exports code]{m_xp} variable stores the amount of XP the player currently have. This is then later used as the score when the game ended. The src_C++[:exports code]{inventory} variable represents the inventory of the player.
+
+New setter and getter functions are added to interact with the new variables. Setter functions such as src_C++[:exports code]{AddItemStatus addItem (std::shared_ptr<Gene-} src_C++[:exports code]{ricItem> item)} and the various overloaded src_C++[:exports code]{std::shared_ptr<GenericItem> dropItem(GenericItem *item)} functions are used to interact with the player's inventory. The AddItemStatus is an enumeration, it would be explained in more detailed in [[Inventory][Inventory]].
+
+The player class overrides the src_C++[:exports code]{int dealDamage(GenericEntity *other)}
+
+method of the [[GenericEntity][GenericEntity]] class to insert its inventory when dealing damage to the enemy. An additional function src_C++[:exports code]{bool useItem(GenericItem *item)} is used for the player to use an item in their inventory. The player class also has an overloaded src_C++[:exports code]{<<} operator to display the current stats of the player such as its HP, XP and inventory.
+
+** Inventory
+The [[Inventory][Inventory]] class represents the inventory of a player. It has two private attributes, and they are src_C++[:exports code]{int m_max_size} and src_C++[:exports code]{std::shared_ptr<GenericItem> *inventory_list}. The src_C++[:exports code]{m_max_size} variable keeps tracks of how many items the inventory can store and src_C++[:exports code]{inventory_list} is a dynamically allocated list of [[Items][Items]] the inventory is currently storing.
+
+The src_C++[:exports code]{AddItemStatus addItem(std::shared_ptr<GenericItem> item, int index=-1)} is used to add items into the inventory. However, multiple different kinds of errors might occur when insert the item into the inventory such as the inventory is full, or the item cannot be picked up, therefore an enumeration src_C++[:exports code]{AddItemStatus} is used. This way the return can accurately represent what is preventing the item from being inserted to the inventory.
+
+The src_C++[:exports code]{<<} is overloaded for the [[Inventory][Inventory]] to print all the content of the inventory. It will print the item name it contains (nothing would be printing if there isn't an item) and it's respective index.
+
+** GenericEnemy
+The [[GenericEnemy][GenericEnemy]] class is a subclass of the [[GenericEntity][GenericEntity]] class which represents an enemy that the player can fight in the adventure game. The class has two additional private variables, src_C++[:exports code]{std::string m_name} and src_C++[:exports code]{std::shared_pt-} src_C++[:exports code]{r<GenericItem> m_prot_item}. They are the name of the enemy and the item it is currently protecting respectively.
+
+The src_C++[:exports code]{m_name} variable is used to compare between two enemies and used to identify the enemy when printing. The src_C++[:exports code]{m_prot_item} is the item the enemy is protecting (preventing the player from picking it up). The src_C++[:exports code]{void onDeath(void)} is overridden by the [[GenericEntity][GenericEntity]] class to allow the player to pick up the item when it dies.
+
+Just like other classes it also has an overloaded src_C++[:exports code]{<<} operator to print the name of the enemy. It also overloaded the src_C++[:exports code]{==} operator to check if two enemies are the same. This basically compares if the name of the enemies are the same.
+
+*** Werewolf
+The [[Werewolf][Werewolf]] class is a subclass of the [[GenericEnemy][GenericEnemy]] class which has a minimal changes except for the overridden src_C++[:exports code]{int takeDamage(int damage, Inventory *inventory)} method from the [[GenericEntity][GenericEntity]] class to take more damage if the player has a "Silver Spear" in their inventory.
+
+*** Vampire
+The [[Vampire][Vampire]] class is a subclass of the [[GenericEnemy][GenericEnemy]] class which has a minimal changes except for the overridden src_C++[:exports code]{int takeDamage(int damage, Inventory *inventory)} method from the [[GenericEntity][GenericEntity]] class to take more damage if the player has a "Diamond Cross" in their inventory. It also reduces the damage taken from the "Sword".
+
+** Items
+*** Consumable
+The [[Consumable][Consumable]] class is a subclass of the [[GenericItem][GenericItem]] class. It represents a consumable item in the game. When used, the consumable item will heal the [[Player][Player]] according to their src_C++[:exports code]{int m_healing} private variable. The class reimplemented the src_C++[:exports code]{void onUsed(Player &entity)} callback from the [[GenericItem][GenericItem]]. When the callback is called it will heal the player and delete itself from the player's inventory.
+
+*** Weapon
+The [[Weapon][Weapon]] class is a subclass of the [[GenericItem][GenericItem]] class. It represents a weapon that the [[Player][Player]] can pick up. The [[Weapon][Weapon]] class reimplemented the src_C++[:exports code]{void onPickup(Player &entity)} and src_C++[:exports code]{void onDropped(Player &entity)} callback of the [[GenericItem][GenericItem]] class. When picked up, the [[Weapon][Weapon]] class would increase the damage from the [[Player][Player]] according to the src_C++[:exports code]{in m_damage} private attributes. It will do the opposite when the src_C++[:exports code]{void onDropped(Player &entity)} callback is called.
+
+** Room
+The [[Room][Room]] class represents a room in the adventure game. Each room has a list of [[GenericItem][GenericItem]] and a list of [[GenericEnemy][GenericEnemy]] in it. This is stored internally as a src_C++[:exports code]{std::vector} of src_C++[:exports code]{std::shared_ptr}. The [[Room][Room]] class also have other private attributes such as src_C++[:exports code]{bool m_locked}, src_C++[:exports code]{std::string name} and pointers to its adjacent rooms.
+
+There are two overloaded setter methods to set the adjacent rooms. The first one takes in a pointer and the other one takes in a src_C++[:exports code]{std::string} as parameters. Each direction has its own setter method however, a more general function src_C++[:exports code]{Room* setRoom(Room *room, Direction direction)} can be used where the direction is specified in the parameters. There are two overloaded ways to specify direction, one is using the src_C++[:exports code]{Direction} enumeration and the other is using strings. When setting the room using the src_C++[:exports code]{std::string} overload, the method would dynamically allocate a new [[Room][Room]] to return to the user.
+
+Setter and getter functions are also available to add or remove enemy, set/get the room name and lock/unlock the room. The logic behind the room locking is implemented in the [[Game/Game Engine][Game/Game Engine]] and the src_C++[:exports code]{m_locked} variable is just an indication.
+
+A special getter function src_C++[:exports code]{std::string getDescription(void)} is also defined. This method gets the description the [[Room][Room]] which includes the room name, all the items, enemies and the adjacent rooms. The string would be in the form "You are in a {room name}. There is a {enemy name} here. You see a {item name}. There is a {room name} to the {north, south, east, west}." The things in "{}" are stand in for the variables and all the items/enemies and the adjacent rooms would be printed in accordance of its presence in the [[Room][Room]]. The overloaded src_C++[:exports code]{<<} operator makes use of this method to determine what to output to the stream.
+
+To kill the enemy in the room, the method src_C++[:exports code]{KillStatus killEnemy(std::st-} src_C++[:exports code]{ring name, GenericEntity *killer)} can be used. The method would continuously deal damage to the killer and the specified enemy either using the enemy name or the index of the enemy in the list until either/both of them died. This method returns a src_C++[:exports code]{KillStatus} enumeration to indicate the status of the kill. KILL\under{}SUCCESS indicates a successful kill, KILL\under{}FAILURE indicates a failed kill (killer died), NO\under{}ENEMEY indicates that there is no enemy with the same name/the index contains no enemy and DEAD\under{}ENEMY indicates that the enemy is already dead.
+
+** Game/Game Engine
+*** HKGE
+The adventure game itself is encapsulated in its own class called src_C++[:exports code]{HKGE}. It has 4 private attributes, src_C++[:exports code]{Room *m_current_room}, src_C++[:exports code]{std::shared_ptr<Player> m_p-} src_C++[:exports code]{layer}, src_C++[:exports code]{std::map<std::string, std::string> m_commands} and src_C++[:exports code]{std::str-} src_C++[:exports code]{ing m_command}. These stores the current room the player is in, the player itself, a src_C++[:exports code]{std::map} containing all the available commands and the current command being processed by the game. The keys to the src_C++[:exports code]{m_commands} map containing all the commands stores the name of the command and the value is the description to what the command does. Two commands were initially registered and implemented in the src_C++[:exports code]{processCommand()} method, and they are "exit" to exit the game and "help" to print the help message.
+
+The src_C++[:exports code]{int start(void)} method starts the game. It is a continuous loop that gets the user input from standard input using the src_C++[:exports code]{int getCommand(void)} method and process the command using the src_C++[:exports code]{GameStatus processCommand(v-} src_C++[:exports code]{oid)} method. GameStatus is an enumeration indicating the current game status, it provides enumerator such as VICTORY, DEFEAT, CONTINUE (continuing the game) and EXIT (the user exited the game). The loop would continue until the GameStatus is not CONTINUE. The src_C++[:exports code]{getCommand()} method will always return 1 to indicate successful capture of a command while src_C++[:exports code]{start()} returns 0 as the exit code indicating successful execution. Once the loop ended, the src_C++[:exports code]{void endGame(GameStatus status)} callback would be called. Subclasses can then reimplement it to do whatever they want.
+
+The commands in the src_C++[:exports code]{m_commands} src_C++[:exports code]{std::map} are just used for the *help* command to display the help message. There are multiple methods to add new commands to the internal list. They are src_C++[:exports code]{void addCommand(std::string name, std::string description)}, src_C++[:exports code]{void addCommands(std::initializer} src_C++[:exports code]{_list<std::map<std::string} src_C++[:exports code]{std::string>::value_type> list)} and src_C++[:exports code]{void addMultipleCommands(std::initializer_list<std::string> commands, std::string description)}. The src_C++[:exports code]{addCommand()} adds a single command, and it's description, while src_C++[:exports code]{addCommands()} adds multiple commands. There are two overloaded src_C++[:exports code]{addMultipleCommands()} method, one takes src_C++[:exports code]{std::list} and the other takes a src_C++[:exports code]{std::initializer_list}. Both of them add multiple commands with the same description into the commands map.
+
+*** AdventureGame
+The [[AdventureGame][AdventureGame]] implements the actual adventure game according the requirements of this coursework. It has 3 additional private variables. src_C++[:exports code]{Room *m_initial_room}, src_C++[:exports code]{Room *rooms[9]} and src_C++[:exports code]{std::string previous_command}. The src_C++[:exports code]{m_initial_room} variable stores the initial room that the user would start in. This is used to know when the user won which is when the user goes back to the initial room with "Golden Chalice" item. The src_C++[:exports code]{rooms} variable stores all the rooms in the game shown in figure [[fig:rooms]]. The rooms are dynamically allocated and is deleted in the destructor. The src_C++[:exports code]{previous_command} variable is used to store the previous command, so the game will repeat the last command typed if nothing is provided.
+
+The src_C++[:exports code]{endGame()} method is reimplemented. It will print a victory, defeat and an exit message according to the GameStatus. The src_C++[:exports code]{getCommand()} method is also reimplemented to support the aforementioned feature of repeating last typed command when nothing is provided.
+
+Lastly, the src_C++[:exports code]{processCommand()} method is reimplemented to add all the new commands. The method uses sequences of if statements to parse each supported command.
+
+- Movement Commands
+
+  The movements command "north", "n", "south", "s", "east", "e", "west" and "w" moves the player to the room to the given direction. It first gets the pointer to the room from the src_C++[:exports code]{m_current_room} variable and checks if it is a src_C++[:exports code]{nullptr} meaning there isn't a room there. If there is a room, it checks if it is locked, if it is change the current room to the new one and reject otherwise. The if case also checks if the player is at the initial room and if the player has the "Golden Chalice" it will end the game.
+
+- Look Command
+
+  The "look" and "l" command is simple due to the overloaded src_C++[:exports code]{<<} operator in the [[Room][Room]] class. It is just simply getting the current room, and print out the room. For clarity, an additional sentence of "You looked around." is added at the beginning.
+
+- Fight Commands
+
+  The "killmonster", "killMonster" and "km" (note that the commands aren't case-sensitive as everything is converted to lower case when getting the commands) commands kills the enemies/monster in the room. It first gets the first enemy in the enemies list of the Room (this is to get the enemy's name for printing), if it failed, it will tell the user there isn't an enemy here. On success, the src_C++[:exports code]{killEnemy()} method in the room class is called to kill the enemy. Before and after the kill, the program takes the player's current health to show calculate how much damage the enemy dealt to the player. Using the KillStatus, the game will end with the DEFEAT GameStatus if the KillStatus is KILL\under{}FAILURE, no enemies will be informed when the DEAD\under{}ENEMEY is received. When the KILL\under{}SUCCESS status is received, the damage dealt would be calculated and printed. In addition, the program would print the [[Player][Player]] class to update the user on the player's condition.
+
+- Alternate Fight Commands
+
+  The user can also kill the monster by "kill {target}" command where "{target}" is the enemy's name to kill. The logic is the same as fight commands except, the enemy to kill is taken from the substring of the command using the src_C++[:exports code]{substr()} method.
+
+- Get Command
+
+  The get command first get the item name using substring and use the src_C++[:exports code]{removeItem()} method of the [[Room][Room]] class. If the return is src_C++[:exports code]{nullptr} it means the item is not in the room. Then the item is added into the inventory using the src_C++[:exports code]{addItem()} method. The response is printed according to the status. In most of the cases other than SUCCESS, the game would return the item to the room as the item isn't added to the inventory.
+
+- Drop Command
+
+  The drop command works similar to the get command except it first use the src_C++[:exports code]{dropItem()} method from [[Player][Player]] class. If src_C++[:exports code]{nullptr} is returned the user is informed that the item is not in inventory otherwise, the program adds the item to the item lists of the room.
+
+- Inventory Commands
+
+  The "inventory" and "i" commands are used to display the player's inventory. It makes use of the overloaded src_C++[:exports code]{<<} operator to print the player's inventory after getting it from the src_C++[:exports code]{m_player} pointer.
+
+- Healing Commands
+
+  The healing commands are split into 3 different if cases to look for "drink elixir", "eat food" and "use medpack". All of them have about the same logic of getting the item from the inventory, check if it is in the inventory by the return and call the src_C++[:exports code]{onUsed()} callback of the item. Then it prints the user has used it and the new player stats using the overloaded src_C++[:exports code]{<<} of the [[Player][Player]] pointer.
+
+- Unlocking Door
+
+  The command first checks if the player have the "Copper Key" item. If the player doesn't have it, it returns CONTINUE status and says that the user need a "Copper Key". Then all the directions are looped and checked if it was locked. The game will unlock the room for each of the locked rooms. If nothing was unlocked the user would be informed that there isn't any room to unlock.
+
+* Results
+#+caption: Movement and Look Commands
+#+attr_latex: :options scale=0.5
+#+name: move-look
+#+label: fig:move-look
+[[./media/move_look.png]]
+
+#+caption: Fighting Commands
+#+attr_latex: :options scale=0.5
+#+name: fight
+#+label: fig:fight
+[[./media/fight.png]]
+
+#+caption: Fighting Commands
+#+attr_latex: :options scale=0.5
+#+name: fight
+#+label: fig:fight
+[[./media/fight.png]]
+
+#+caption: Get and Drop Commands
+#+attr_latex: :options scale=0.5
+#+name: get-drop
+#+label: fig:get-drop
+[[./media/get_drop.png]]
+
+#+caption: Inventory and Healing Commands
+#+attr_latex: :options scale=0.5
+#+name: inv-heal
+#+label: fig:inv-heal
+[[./media/inventory_healing.png]]
+
+#+caption: Unlocking Door Command
+#+attr_latex: :options scale=0.5
+#+name: unlock
+#+label: fig:unlock
+[[./media/unlock.png]]
+
+#+caption: Victory
+#+attr_latex: :options scale=0.5
+#+name: victory
+#+label: fig:victory
+[[./media/victory.png]]
+
+#+caption: Defeat
+#+attr_latex: :options scale=0.5
+#+name: defeat
+#+label: fig:defeat
+[[./media/defeat.png]]
+
+#+caption: Exit
+#+attr_latex: :options scale=0.5
+#+name: exit
+#+label: fig:exit
+[[./media/exit.png]]
+
+\clearpage
+* Appendix
+
+#+caption: The adventure game layout
+#+attr_latex: scale=0.75
+#+name: rooms
+#+label: fig:rooms
+[[./media/rooms.png]]
+
+#+caption: Table showing all the available commands
+#+name: commands-table
+#+label: fig:commands-table
+| Command        | Description                                |
+|----------------+--------------------------------------------|
+| drink elixir   | Drink the elixir in the inventory.         |
+| drop {item}    | Drops the item with the name {item}.       |
+| e              | Go to the room east.                       |
+| east           | Go to the room east.                       |
+| eat food       | Eat the food in the inventory.             |
+| exit           | Exits the game                             |
+| get {item}     | Gets the item with the name {item}.        |
+| help           | Shows the available commands               |
+| i              | Shows the player's inventory.              |
+| inventory      | Shows the player's inventory.              |
+| kill {monster} | Kills the monster with the name {monster}. |
+| killMonster    | Kills the monster in the room.             |
+| km             | Kills the monster in the room.             |
+| l              | Shows what is in the room.                 |
+| look           | Shows what is in the room.                 |
+| n              | Go to the room north.                      |
+| north          | Go to the room north.                      |
+| s              | Go to the room south.                      |
+| south          | Go to the room south.                      |
+| unlock door    | Unlocks the locked rooms.                  |
+| use medpack    | Use the medpack in the inventory.          |
+| w              | Go to the room west.                       |
+| west           | Go to the room west.                       |
+\newpage
+
+** Enumerations
+
+#+caption: AddItemStatus enumeration
+#+name: AddItemStatus
+#+label: code:AddItemStatus
+#+begin_src C++
+enum AddItemStatus {
+NO_SPACE,
+INDEX_OUT_OF_RANGE,
+INVALID_INDEX,
+CANNOT_PICKUP,
+INVALID_ITEM,
+SUCCESS
+};
+#+end_src
+
+#+caption: Direction enumeration
+#+name: Direction
+#+label: code:Direction
+#+begin_src C++
+enum Direction {
+NORTH,
+SOUTH,
+EAST,
+WEST
+};
+#+end_src
+
+#+caption: KillStatus enumeration
+#+name: KillStatus
+#+label: code:KillStatus
+#+begin_src C++
+enum KillStatus {
+KILL_SUCCESS,
+KILL_FAILURE,
+NO_ENEMY,
+DEAD_ENEMY
+};
+#+end_src
+
+#+caption: GameStatus enumeration
+#+name: GameStatus
+#+label: code:GameStatus
+#+begin_src C++
+enum GameStatus {
+VICTORY,
+DEFEAT,
+EXIT,
+CONTINUE
+};
+#+end_src
+
+** Inheritance Diagrams
+
+#+caption: Inheritance diagram for [[GenericEntity][GenericEntity]]
+#+attr_latex: :options scale=0.5
+#+name: GenericEntity
+#+label: fig:GenericEntity
+[[./media/classGenericEntity.png]]
+
+#+caption: Inheritance diagram for [[GenericItem][GenericItem]]
+#+attr_latex: :options scale=0.5
+#+name: GenericItem
+#+label: fig:GenericItem
+[[./media/classGenericItem.png]]

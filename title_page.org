@@ -1,0 +1,16 @@
+# https://orgmode.org/manual/Include-Files.html
+#+begin_src emacs-lisp :exports results :results none :eval export
+  (make-variable-buffer-local 'org-latex-title-command)
+  (setq org-latex-title-command (concat
+     "\\begin{titlepage}\n"
+     "\\vspace*{5em}\n"
+     "\\begin{center}\n"
+     "\\includegraphics[scale=0.2]{./media/Nottingham.png}\n\n"
+     "{\\Huge %t \\par }\n"
+     "{\\vspace{1em}}\n"
+     "{\\LARGE %s \\par }\n"
+     "{\\vspace{1em}}\n"
+     "{\\Large %a \\par}\n"
+     "\\end{center}\n"
+     "\\end{titlepage}\n"))
+#+end_src
