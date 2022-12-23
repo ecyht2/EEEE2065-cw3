@@ -55,3 +55,6 @@ _deps
 
 # Valgrind
 vgcore.*
+
+# Doxygen
+docs/
