@@ -23,6 +23,10 @@ After compilation a directory `bin/` should be created in the repository. To run
 bin/adventure-game
 ```
 
+## Documentation
+
+Documentation of the coursework can be found in the project [GitHub pages](https://ecyht2.github.io/EEEE2065-cw3/).
+
 ## TODO
   * [ ] Command Class
   * [ ] Event Based Game
