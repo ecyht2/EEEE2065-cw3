@@ -1,6 +1,8 @@
 # Adventure Game
 
-An adventure game.
+A CLI adventure game.
+
+The Rust implementation of the library can be found [here](https://github.com/ecyht2/adventure-game-rs).
 
 ## Building
 
